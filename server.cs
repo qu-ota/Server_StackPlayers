@@ -4,17 +4,43 @@
 
 function serverCmdStackme(%cl)
 {
-	if(!%cl.isAdmin)
-		return;
+	if(!%cl.isModerator || !%cl.isAdmin)
+	{
+		%this.hasStackLimit = 1;
+		%this.stackLimit = 15;
+	}
+	if(%cl.isModerator)
+	{
+		%this.hasStackLimit = 1;
+		%this.stackLimit = 25;
+	}
+	if(%cl.isAdmin)
+		%this.hasStackLimit = 0;
+	
 	%pl = %cl.player;
 	if(isObject(%pl))
 	{
+		if(%pl.stackCount > %pl.stackLimit)
+			return;
+		
 		%pl.client = "";
 		%pl.setName("stackPlayer_" @ %cl.bl_id);
 		%cl.player = "";
 		%cl.createPlayer(%pl.getTransform());
 		%cl.player.mountObject(%pl, 5);
+		if(%cl.hasStackLimit)
+			%pl.stackCount++;
 	}
+}
+
+function serverCmdStackUser(%cl,%this)
+{
+	%t = findclientbyname(%this);
+	
+	if(!%cl.isAdmin)
+		return;
+	
+	serverCmdStackMe(%this);
 }
 
 function serverCmdClearStack(%cl)
@@ -24,6 +50,9 @@ function serverCmdClearStack(%cl)
 	%pl = %cl.player;
 	while(isObject(%mount = %pl.getMountedObject(0)))
 		%mount.chainDisappear();
+	
+	if(%cl.hasStackLimit)
+		%pl.stackCount = 0;
 }
 
 function Player::chainKill(%pl)
@@ -44,7 +73,7 @@ function Player::chainDisappear(%pl)
 	%pl.delete();
 }
 
-package StackMe_ClearChecks
+package StackMe_Checks
 {
 	function GameConnection::OnDeath(%client, %sourceObject, %sourceClient, %damageType, %damLoc)
 	{
@@ -70,4 +99,4 @@ package StackMe_ClearChecks
 		parent::onClientLeaveGame(%cl);
 	}
 };
-activatePackage(StackMe_ClearChecks);
+activatePackage(StackMe_Checks);
